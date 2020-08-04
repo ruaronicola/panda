@@ -79,6 +79,11 @@ struct_get_ret_t struct_get(CPUState *cpu, T *v, target_ptr_t ptr, std::initiali
             memset((uint8_t *)v, 0, sizeof(T));
             return r;
         }
+#if defined(TARGET_WORDS_BIGENDIAN)
+        // We're reading the current item as a pointer - if big
+        // endian, we'll get it backwards so do a bswap32
+        ptr = bswap32(ptr);
+#endif
         o = *it;
     }
 
@@ -612,6 +617,7 @@ void get_process_info(CPUState *cpu, GArray **out,
 #endif
 
     ts_current = ts_first;
+
     if (ts_first == (target_ptr_t)NULL) goto error;
 #if defined(OSI_LINUX_PSDEBUG)
     LOG_INFO("START %c:%c " TARGET_PTR_FMT " " TARGET_PTR_FMT, TS_THREAD_CHR(cpu, ts_first),  TS_LEADER_CHR(cpu, ts_first), ts_first, ts_first);
@@ -619,7 +625,7 @@ void get_process_info(CPUState *cpu, GArray **out,
 
     do {
 #if defined(OSI_LINUX_PSDEBUG)
-        LOG_INFO("\t %03u:" TARGET_PTR_FMT ":" TARGET_PID_FMT ":" TARGET_PID_FMT ":%c:%c", a->len, ts_current, get_pid(cpu, ts_current), get_tgid(cpu, ts_current), TS_THREAD_CHR(cpu, ts_current), TS_LEADER_CHR(cpu, ts_current));
+        LOG_INFO("\t %03u:" TARGET_PTR_FMT ":" TARGET_PID_FMT ":" TARGET_PID_FMT ":%c:%c", (*out)->len, ts_current, get_pid(cpu, ts_current), get_tgid(cpu, ts_current), TS_THREAD_CHR(cpu, ts_current), TS_LEADER_CHR(cpu, ts_current));
 #endif
         memset(&element, 0, sizeof(ET));
         fill_element(cpu, &element, ts_current);

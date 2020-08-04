@@ -156,6 +156,13 @@ void fill_osiproc(CPUState *cpu, OsiProc *p, target_ptr_t task_addr) {
     //p->ppid = get_real_parent_pid(cpu, task_addr);
     p->pages = NULL;  // OsiPage - TODO
     p->create_time = get_start_time(cpu, task_addr);
+
+    // PID is backwards for big-endian
+    // Should probably move this into macros but that's harder
+#if defined(TARGET_WORDS_BIGENDIAN)
+    p->pid = bswap32(p->pid);
+    p->ppid = bswap32(p->ppid);
+#endif
 }
 
 /**
@@ -207,6 +214,10 @@ void fill_osithread(CPUState *env, OsiThread *t,
     memset(t, 0, sizeof(*t));
     t->tid = get_pid(env, task_addr);
     t->pid = get_tgid(env, task_addr);
+#if defined(TARGET_WORDS_BIGENDIAN)
+    t->tid = bswap32(t->tid);
+    t->pid = bswap32(t->pid);
+#endif
 }
 
 /* ******************************************************************
@@ -456,6 +467,9 @@ void on_get_process_pid(CPUState *env, const OsiProcHandle *h, target_pid_t *pid
     } else {
         *pid = get_tgid(env, h->taskd);
     }
+#if defined(TARGET_WORDS_BIGENDIAN)
+    *pid = bswap32(*pid);
+#endif
 }
 
 /**
@@ -475,6 +489,9 @@ void on_get_process_ppid(CPUState *cpu, const OsiProcHandle *h, target_pid_t *pp
             *ppid = (target_pid_t)-1;
         }
     }
+#if defined(TARGET_WORDS_BIGENDIAN)
+    *ppid = bswap32(*ppid);
+#endif
 }
 
 /* ******************************************************************

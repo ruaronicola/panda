@@ -45,6 +45,10 @@ target_ptr_t default_get_current_task_struct(CPUState *cpu)
 #endif
     err = struct_get(cpu, &ts, current_task_addr, ki.task.per_cpu_offset_0_addr);
     assert(err == struct_get_ret_t::SUCCESS && "failed to get current task struct");
+#if defined(TARGET_WORDS_BIGENDIAN)
+    // Big-endian pointers come to us backwards!
+    ts = (target_ptr_t)bswap32((uint32_t)ts);
+#endif
     return ts;
 }
 
@@ -57,6 +61,10 @@ target_ptr_t default_get_task_struct_next(CPUState *cpu, target_ptr_t task_struc
     target_ptr_t tasks;
     err = struct_get(cpu, &tasks, task_struct, ki.task.tasks_offset);
     assert(err == struct_get_ret_t::SUCCESS && "failed to get next task");
+#if defined(TARGET_WORDS_BIGENDIAN)
+    // Big-endian pointers come to us backwards!
+    tasks = (target_ptr_t)bswap32((uint32_t)tasks);
+#endif
     return tasks-ki.task.tasks_offset;
 }
 
@@ -69,6 +77,10 @@ target_ptr_t default_get_group_leader(CPUState *cpu, target_ptr_t ts)
     target_ptr_t group_leader;
     err = struct_get(cpu, &group_leader, ts, ki.task.group_leader_offset);
     assert(err == struct_get_ret_t::SUCCESS && "failed to get group leader for task");
+#if defined(TARGET_WORDS_BIGENDIAN)
+    // Big-endian pointers come to us backwards!
+    group_leader = (target_ptr_t)bswap32((uint32_t)group_leader);
+#endif
     return group_leader;
 }
 
