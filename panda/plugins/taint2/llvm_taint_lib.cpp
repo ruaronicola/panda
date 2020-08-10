@@ -141,6 +141,8 @@ static void taint_copyRegToPc_run(Shad *shad, uint64_t src, uint64_t size)
 }
 
 extern "C" { extern TCGLLVMContext *tcg_llvm_ctx; }
+
+
 bool PandaTaintFunctionPass::doInitialization(Module &M) {
     // Add taint functions to module
     // First try binary relative path.
@@ -202,7 +204,7 @@ bool PandaTaintFunctionPass::doInitialization(Module &M) {
     PTV.breadcrumbF = M.getFunction("taint_breadcrumb");
 
     PTV.afterLdF = M.getFunction("taint_after_ld");
-    PTV.logCmpF = M.getFunction("log_tainted_cmp"); // WIP
+    PTV.afterTaintedBranch = M.getFunction("after_tainted_branch");
 
     llvm::Type *shadT = M.getTypeByName("class.Shad");
     assert(shadT);
@@ -273,6 +275,7 @@ bool PandaTaintFunctionPass::doInitialization(Module &M) {
 
     ADD_MAPPING(taint_memlog_pop);
 
+    ADD_MAPPING(after_tainted_branch);
     ADD_MAPPING(taint_after_ld);
 
     //ADD_MAPPING(label_set_union);
@@ -1219,6 +1222,8 @@ void PandaTaintVisitor::visitCastInst(CastInst &I) {
  * constants, then it will be a delete.  Since this is usually used for a branch
  * condition, this could let us see if we can
  * potentially affect control flow.
+ *
+ * If the data is tainted we inject a call to after_tainted_branch
  */
 void PandaTaintVisitor::visitCmpInst(CmpInst &I) {
     LoadInst *LI = dyn_cast<LoadInst>(I.getOperand(0));
@@ -1235,7 +1240,6 @@ void PandaTaintVisitor::visitCmpInst(CmpInst &I) {
         }
     }
 
-    // Call to logCmpF just after the compare so to support tainted compares
     vector<Value *> cargs{
         llvConst,
         constInstr(&I),
@@ -1244,11 +1248,12 @@ void PandaTaintVisitor::visitCmpInst(CmpInst &I) {
         constSlot(I.getOperand(1))
     };
 
-    inlineCallAfter(I, logCmpF, cargs);
+    inlineCallAfter(I, afterTaintedBranch, cargs);
 
 
     insertTaintCompute(I, &I, I.getOperand(0), I.getOperand(1), true);
 }
+
 
 void PandaTaintVisitor::visitPHINode(PHINode &I) {
     LoadInst *LI = new LoadInst(prevBbConst);
